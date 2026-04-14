@@ -8,6 +8,8 @@ dependencies = [
     "python-dotenv>=1.0",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
+    "hyperliquid-python-sdk>=0.22",
+    "eth-account>=0.13",
 ]
 
 [build-system]

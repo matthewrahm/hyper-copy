@@ -159,6 +159,42 @@ class CopyEngine:
             )
         self.db._conn.commit()
 
+    def run_live(self, config: CopyConfig, interval: int = 5, max_iterations: int = 0):
+        """Run copy engine in live mode with real order execution."""
+        from hyper_copy.executor import OrderExecutor
+
+        executor = OrderExecutor()
+        logger.info(f"LIVE mode: copying {config.leader_address[:10]}... for {config.copier_address[:10]}...")
+
+        iteration = 0
+        while max_iterations == 0 or iteration < max_iterations:
+            try:
+                changes = self.detect_changes(config.leader_address)
+
+                if changes:
+                    leader_val = self.client.get_account_value(config.leader_address)
+                    copier_val = self.client.get_account_value(config.copier_address)
+                    orders = self.generate_orders(changes, config, leader_val, copier_val)
+
+                    for order in orders:
+                        logger.info(
+                            f"  EXECUTING: {order.side} {order.size:.4f} {order.coin} "
+                            f"@ ${order.price:,.2f} ({order.reason})"
+                        )
+                        result = executor.execute_order(order, config.copier_address)
+                        status = result.get("status", "rejected")
+                        self.log_orders([order], config, status=status)
+
+                iteration += 1
+                time.sleep(interval)
+
+            except KeyboardInterrupt:
+                logger.info("Live mode stopped")
+                break
+            except Exception as e:
+                logger.error(f"Copy engine error: {e}")
+                time.sleep(interval)
+
     def run_paper(self, config: CopyConfig, interval: int = 5, max_iterations: int = 0):
         """Run copy engine in paper mode.
 
