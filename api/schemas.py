@@ -56,3 +56,35 @@ class SubmitTraderResponse(BaseModel):
     address: str
     status: str
     score: float | None = None
+
+
+class CopyConfigRequest(BaseModel):
+    copier_address: str
+    leader_address: str
+    max_position_pct: float = 0.10
+    max_total_exposure_pct: float = 0.50
+    stop_loss_pct: float = 0.05
+    max_drawdown_pct: float = 0.15
+    token_whitelist: list[str] = []
+    token_blacklist: list[str] = []
+
+
+class CopyConfigResponse(BaseModel):
+    copier_address: str
+    leader_address: str
+    config: dict
+    active: bool
+    created_at: float
+
+
+class CopyLogEntry(BaseModel):
+    timestamp: float
+    copier_address: str
+    leader_address: str
+    coin: str
+    side: str
+    size: float
+    price: float
+    order_type: str
+    reason: str
+    status: str

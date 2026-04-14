@@ -11,6 +11,7 @@ import PnlSummary from "@/app/components/PnlSummary";
 import ScoreBreakdown from "@/app/components/ScoreBreakdown";
 import PositionsTable from "@/app/components/PositionsTable";
 import FillsTable from "@/app/components/FillsTable";
+import CopyButton from "@/app/components/CopyButton";
 
 export default function TraderDetailPage() {
   const params = useParams();
@@ -56,7 +57,15 @@ export default function TraderDetailPage() {
         </div>
       ) : profile ? (
         <>
-          <TraderHeader score={profile.score} />
+          <div className="flex items-start justify-between">
+            <TraderHeader score={profile.score} />
+            <CopyButton
+              leaderAddress={address}
+              copierAddress=""
+              isFollowing={false}
+              onChanged={() => {}}
+            />
+          </div>
           <PnlSummary score={profile.score} />
           <ScoreBreakdown score={profile.score} />
           <PositionsTable address={address} />

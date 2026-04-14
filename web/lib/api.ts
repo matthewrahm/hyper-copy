@@ -73,6 +73,63 @@ export function getTraderFills(address: string, limit = 100) {
   return fetchAPI<TraderFill[]>(`/api/trader/${address}/fills?limit=${limit}`);
 }
 
+export interface CopyConfig {
+  copier_address: string;
+  leader_address: string;
+  config: {
+    max_position_pct: number;
+    max_total_exposure_pct: number;
+    stop_loss_pct: number;
+    max_drawdown_pct: number;
+    token_whitelist: string[];
+    token_blacklist: string[];
+  };
+  active: boolean;
+  created_at: number;
+}
+
+export interface CopyLogEntry {
+  timestamp: number;
+  copier_address: string;
+  leader_address: string;
+  coin: string;
+  side: string;
+  size: number;
+  price: number;
+  order_type: string;
+  reason: string;
+  status: string;
+}
+
+export function createCopy(params: {
+  copier_address: string;
+  leader_address: string;
+  max_position_pct?: number;
+  max_total_exposure_pct?: number;
+  stop_loss_pct?: number;
+  max_drawdown_pct?: number;
+}) {
+  return fetchAPI<CopyConfig>("/api/copy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+}
+
+export function getCopies(copier: string) {
+  return fetchAPI<CopyConfig[]>(`/api/copy/${copier}`);
+}
+
+export function stopCopy(copier: string, leader: string) {
+  return fetchAPI<{ status: string }>(`/api/copy/${copier}/${leader}`, {
+    method: "DELETE",
+  });
+}
+
+export function getCopyLog(copier: string, limit = 100) {
+  return fetchAPI<CopyLogEntry[]>(`/api/copy/${copier}/log?limit=${limit}`);
+}
+
 export function submitTrader(address: string) {
   return fetchAPI<{ address: string; status: string; score: number | null }>(
     "/api/trader",

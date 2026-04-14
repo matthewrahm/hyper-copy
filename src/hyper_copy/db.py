@@ -134,5 +134,56 @@ class Database:
         rows = self._conn.execute("SELECT address FROM traders").fetchall()
         return [r["address"] for r in rows]
 
+    # Copy config methods
+
+    def upsert_copy_config(self, copier: str, leader: str, config: dict, active: bool = True):
+        import time as _time
+        self._conn.execute(
+            """INSERT INTO copy_configs (copier_address, leader_address, config, active, created_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(copier_address, leader_address) DO UPDATE SET
+                   config=excluded.config, active=excluded.active""",
+            (copier, leader, json.dumps(config), int(active), _time.time()),
+        )
+        self._conn.commit()
+
+    def get_copy_configs(self, copier: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT * FROM copy_configs WHERE copier_address = ? AND active = 1",
+            (copier,),
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["config"] = json.loads(d["config"]) if d["config"] else {}
+            result.append(d)
+        return result
+
+    def get_copy_config(self, copier: str, leader: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT * FROM copy_configs WHERE copier_address = ? AND leader_address = ?",
+            (copier, leader),
+        ).fetchone()
+        if row:
+            d = dict(row)
+            d["config"] = json.loads(d["config"]) if d["config"] else {}
+            return d
+        return None
+
+    def delete_copy_config(self, copier: str, leader: str) -> bool:
+        cursor = self._conn.execute(
+            "UPDATE copy_configs SET active = 0 WHERE copier_address = ? AND leader_address = ?",
+            (copier, leader),
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    def get_copy_log(self, copier: str, limit: int = 100) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT * FROM copy_log WHERE copier_address = ? ORDER BY timestamp DESC LIMIT ?",
+            (copier, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
     def close(self):
         self._conn.close()

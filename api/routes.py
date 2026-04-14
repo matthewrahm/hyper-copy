@@ -10,6 +10,9 @@ from api.schemas import (
     TraderProfile,
     SubmitTraderRequest,
     SubmitTraderResponse,
+    CopyConfigRequest,
+    CopyConfigResponse,
+    CopyLogEntry,
 )
 
 router = APIRouter(prefix="/api")
@@ -147,6 +150,75 @@ async def submit_trader(request: Request, body: SubmitTraderRequest):
         status="added",
         score=None,
     )
+
+
+@router.post("/copy", response_model=CopyConfigResponse)
+async def create_copy(request: Request, body: CopyConfigRequest):
+    if not ADDRESS_RE.match(body.copier_address) or not ADDRESS_RE.match(body.leader_address):
+        raise HTTPException(400, "Invalid address")
+
+    mgr = _mgr(request)
+    config = {
+        "max_position_pct": body.max_position_pct,
+        "max_total_exposure_pct": body.max_total_exposure_pct,
+        "stop_loss_pct": body.stop_loss_pct,
+        "max_drawdown_pct": body.max_drawdown_pct,
+        "token_whitelist": body.token_whitelist,
+        "token_blacklist": body.token_blacklist,
+    }
+    mgr.db.upsert_copy_config(body.copier_address, body.leader_address, config)
+    row = mgr.db.get_copy_config(body.copier_address, body.leader_address)
+    return CopyConfigResponse(**row)
+
+
+@router.get("/copy/{copier}", response_model=list[CopyConfigResponse])
+async def get_copies(request: Request, copier: str):
+    if not ADDRESS_RE.match(copier):
+        raise HTTPException(400, "Invalid address")
+    mgr = _mgr(request)
+    configs = mgr.db.get_copy_configs(copier)
+    return [CopyConfigResponse(**c) for c in configs]
+
+
+@router.delete("/copy/{copier}/{leader}")
+async def stop_copy(request: Request, copier: str, leader: str):
+    if not ADDRESS_RE.match(copier) or not ADDRESS_RE.match(leader):
+        raise HTTPException(400, "Invalid address")
+    mgr = _mgr(request)
+    if mgr.db.delete_copy_config(copier, leader):
+        return {"status": "stopped"}
+    raise HTTPException(404, "Copy config not found")
+
+
+@router.put("/copy/{copier}/{leader}", response_model=CopyConfigResponse)
+async def update_copy(request: Request, copier: str, leader: str, body: CopyConfigRequest):
+    if not ADDRESS_RE.match(copier) or not ADDRESS_RE.match(leader):
+        raise HTTPException(400, "Invalid address")
+    mgr = _mgr(request)
+    config = {
+        "max_position_pct": body.max_position_pct,
+        "max_total_exposure_pct": body.max_total_exposure_pct,
+        "stop_loss_pct": body.stop_loss_pct,
+        "max_drawdown_pct": body.max_drawdown_pct,
+        "token_whitelist": body.token_whitelist,
+        "token_blacklist": body.token_blacklist,
+    }
+    mgr.db.upsert_copy_config(copier, leader, config)
+    row = mgr.db.get_copy_config(copier, leader)
+    return CopyConfigResponse(**row)
+
+
+@router.get("/copy/{copier}/log", response_model=list[CopyLogEntry])
+async def get_copy_log(
+    request: Request,
+    copier: str,
+    limit: int = Query(default=100, ge=1, le=1000),
+):
+    if not ADDRESS_RE.match(copier):
+        raise HTTPException(400, "Invalid address")
+    mgr = _mgr(request)
+    logs = mgr.db.get_copy_log(copier, limit)
+    return [CopyLogEntry(**l) for l in logs]
 
 
 @router.get("/health")

@@ -13,6 +13,20 @@ export default function Header() {
           Track, score, and copy top Hyperliquid traders
         </p>
       </div>
+      <nav className="flex items-center gap-4">
+        <Link
+          href="/"
+          className="text-sm text-secondary hover:text-primary transition-colors"
+        >
+          Leaderboard
+        </Link>
+        <Link
+          href="/copies"
+          className="text-sm text-secondary hover:text-primary transition-colors"
+        >
+          My Copies
+        </Link>
+      </nav>
     </header>
   );
 }
