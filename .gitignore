@@ -1,0 +1,16 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+dist/
+*.egg-info/
+.claude/
+CLAUDE.md
+AGENTS.md
+.uv/
+uv.lock
+data/*.db
+web/node_modules/
+web/.next/
+web/.env.local
