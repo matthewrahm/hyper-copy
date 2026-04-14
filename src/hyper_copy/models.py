@@ -55,6 +55,43 @@ class Trade:
 
 
 @dataclass
+class CopyConfig:
+    copier_address: str
+    leader_address: str
+    max_position_pct: float = 0.10  # 10% of account per position
+    max_total_exposure_pct: float = 0.50  # 50% total
+    stop_loss_pct: float = 0.05  # 5% per position
+    max_drawdown_pct: float = 0.15  # 15% kill switch
+    token_whitelist: list[str] = field(default_factory=list)
+    token_blacklist: list[str] = field(default_factory=list)
+    active: bool = True
+
+
+@dataclass
+class CopyOrder:
+    coin: str
+    side: str  # "B" (buy) or "A" (sell)
+    size: float
+    price: float
+    order_type: str = "market"  # market or limit
+    reduce_only: bool = False
+    reason: str = ""  # "open", "close", "adjust"
+    leader_position_pct: float = 0.0
+    copier_target_size: float = 0.0
+
+
+@dataclass
+class PositionChange:
+    coin: str
+    change_type: str  # "open", "close", "increase", "decrease"
+    prev_size: float
+    new_size: float
+    prev_side: str
+    new_side: str
+    mark_price: float
+
+
+@dataclass
 class TraderScore:
     address: str
     total_pnl: float
