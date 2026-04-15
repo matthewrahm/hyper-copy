@@ -101,6 +101,12 @@ export interface CopyLogEntry {
   status: string;
 }
 
+export function getAccountValue(address: string) {
+  return fetchAPI<{ address: string; account_value: number }>(
+    `/api/account/${address}/value`
+  );
+}
+
 export function createCopy(params: {
   copier_address: string;
   leader_address: string;

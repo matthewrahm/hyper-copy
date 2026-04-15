@@ -16,8 +16,8 @@ class CopyEngine:
         self.client = client
         self.db = db
         self.risk = RiskManager()
-        # In-memory cache of last known leader positions: {address: {coin: TraderPosition}}
         self._last_positions: dict[str, dict[str, TraderPosition]] = {}
+        self._initial_values: dict[str, float] = {}  # "copier:leader" -> initial account value
 
     def detect_changes(self, leader_address: str) -> list[PositionChange]:
         """Compare current positions to last known state."""
@@ -145,6 +145,49 @@ class CopyEngine:
 
         return orders
 
+    def _check_portfolio_risk(self, config: CopyConfig, copier_val: float) -> tuple[bool, str]:
+        """Check portfolio-level risk controls. Returns (ok, reason)."""
+        # Track initial value for drawdown calculation
+        key = f"{config.copier_address}:{config.leader_address}"
+        if key not in self._initial_values:
+            self._initial_values[key] = copier_val
+
+        # Check drawdown
+        ok, reason = self.risk.check_drawdown(
+            config, self._initial_values[key], copier_val
+        )
+        if not ok:
+            logger.warning(f"KILL SWITCH: {reason}")
+            return False, reason
+
+        # Check total exposure
+        try:
+            snapshot = self.client.get_snapshot(config.copier_address)
+            ok, reason = self.risk.check_exposure(
+                config, snapshot.positions, copier_val
+            )
+            if not ok:
+                logger.info(f"Exposure limit: {reason}")
+                return False, reason
+        except Exception as e:
+            logger.error(f"Failed to check exposure: {e}")
+
+        return True, "ok"
+
+    def log_blocked(self, change: PositionChange, config: CopyConfig, reason: str):
+        """Log a risk-blocked event to the database."""
+        now = time.time()
+        self.db._conn.execute(
+            """INSERT INTO copy_log
+               (timestamp, copier_address, leader_address, coin, side, size, price, order_type, reason, status, error)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (now, config.copier_address, config.leader_address,
+             change.coin, change.new_side or change.prev_side,
+             change.new_size, change.mark_price,
+             "market", f"blocked: {reason}", "risk_blocked", reason),
+        )
+        self.db._conn.commit()
+
     def log_orders(self, orders: list[CopyOrder], config: CopyConfig, status: str = "paper"):
         """Log copy orders to database."""
         now = time.time()
@@ -212,6 +255,19 @@ class CopyEngine:
                 if changes:
                     leader_val = self.client.get_account_value(config.leader_address)
                     copier_val = self.client.get_account_value(config.copier_address)
+
+                    # Portfolio-level risk check
+                    risk_ok, risk_reason = self._check_portfolio_risk(config, copier_val)
+                    if not risk_ok:
+                        for change in changes:
+                            self.log_blocked(change, config, risk_reason)
+                        if "kill switch" in risk_reason.lower() or "drawdown" in risk_reason.lower():
+                            logger.warning("Drawdown kill switch triggered. Stopping copy.")
+                            break
+                        iteration += 1
+                        time.sleep(interval)
+                        continue
+
                     orders = self.generate_orders(changes, config, leader_val, copier_val)
 
                     for change in changes:

@@ -221,6 +221,16 @@ async def get_copy_log(
     return [CopyLogEntry(**l) for l in logs]
 
 
+@router.get("/account/{address}/value")
+async def get_account_value(request: Request, address: str):
+    if not ADDRESS_RE.match(address):
+        raise HTTPException(400, "Invalid address")
+    client = _client(request)
+    loop = asyncio.get_event_loop()
+    value = await loop.run_in_executor(None, client.get_account_value, address)
+    return {"address": address, "account_value": value}
+
+
 @router.get("/health")
 async def health():
     return {"ok": True, "service": "hyper-copy"}
