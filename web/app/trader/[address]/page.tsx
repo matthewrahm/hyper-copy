@@ -60,10 +60,8 @@ export default function TraderDetailPage() {
           <div className="flex items-start justify-between">
             <TraderHeader score={profile.score} />
             <CopyButton
-              leaderAddress={address}
-              copierAddress=""
-              isFollowing={false}
-              onChanged={() => {}}
+              traderScore={profile.score}
+              positions={profile.positions}
             />
           </div>
           <PnlSummary score={profile.score} />

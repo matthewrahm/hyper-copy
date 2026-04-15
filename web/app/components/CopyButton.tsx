@@ -1,137 +1,117 @@
 "use client";
 
-import { useState } from "react";
-import { createCopy, stopCopy } from "@/lib/api";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getCopies, stopCopy, type LeaderboardEntry, type TraderPosition } from "@/lib/api";
+import { useWallet } from "@/app/hooks/useWallet";
+import CopyWizard from "./CopyWizard";
 
 export default function CopyButton({
-  leaderAddress,
-  copierAddress,
-  isFollowing,
-  onChanged,
+  traderScore,
+  positions,
 }: {
-  leaderAddress: string;
-  copierAddress: string;
-  isFollowing: boolean;
-  onChanged: () => void;
+  traderScore: LeaderboardEntry;
+  positions: TraderPosition[];
 }) {
-  const [loading, setLoading] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-  const [maxPos, setMaxPos] = useState(10);
-  const [maxExp, setMaxExp] = useState(50);
-  const [maxDD, setMaxDD] = useState(15);
+  const router = useRouter();
+  const { address, isSet } = useWallet();
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [showConfirmStop, setShowConfirmStop] = useState(false);
 
-  const handleFollow = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (!isSet) return;
+    getCopies(address)
+      .then((copies) => {
+        const found = copies.some(
+          (c) => c.leader_address === traderScore.address
+        );
+        setIsFollowing(found);
+      })
+      .catch(() => {});
+  }, [address, isSet, traderScore.address]);
+
+  const handleStop = async () => {
+    setStopping(true);
     try {
-      await createCopy({
-        copier_address: copierAddress,
-        leader_address: leaderAddress,
-        max_position_pct: maxPos / 100,
-        max_total_exposure_pct: maxExp / 100,
-        max_drawdown_pct: maxDD / 100,
-      });
-      setShowConfig(false);
-      onChanged();
+      await stopCopy(address, traderScore.address);
+      setIsFollowing(false);
+      setShowConfirmStop(false);
     } catch {
       // error
     } finally {
-      setLoading(false);
+      setStopping(false);
     }
   };
 
-  const handleUnfollow = async () => {
-    setLoading(true);
-    try {
-      await stopCopy(copierAddress, leaderAddress);
-      onChanged();
-    } catch {
-      // error
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (isFollowing) {
+  if (!isSet) {
     return (
       <button
-        onClick={handleUnfollow}
-        disabled={loading}
-        className="rounded-lg border border-loss/30 px-4 py-2 text-sm font-medium text-loss transition-colors hover:bg-loss/10 disabled:opacity-40"
+        onClick={() => router.push("/copies")}
+        className="rounded-lg px-4 py-2 text-sm font-medium text-muted transition-colors"
+        style={{ border: "1px solid rgba(255,255,255,0.10)" }}
       >
-        {loading ? "Stopping..." : "Stop Copying"}
+        Connect wallet to copy
       </button>
     );
   }
 
-  if (showConfig) {
+  if (isFollowing) {
     return (
-      <div className="card p-4 space-y-3">
-        <div className="label">Risk Parameters</div>
-
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-secondary">Max position size</span>
+      <div className="flex items-center gap-3">
+        <span
+          className="text-xs font-medium px-2.5 py-1 rounded-md text-profit"
+          style={{ background: "rgba(34,197,94,0.12)" }}
+        >
+          Copying
+        </span>
+        {showConfirmStop ? (
           <div className="flex items-center gap-2">
-            <input
-              type="range"
-              min={1} max={50} value={maxPos}
-              onChange={(e) => setMaxPos(Number(e.target.value))}
-              className="w-24 accent-accent"
-            />
-            <span className="num text-xs text-primary w-8">{maxPos}%</span>
+            <span className="text-xs text-muted">Stop copying?</span>
+            <button
+              onClick={handleStop}
+              disabled={stopping}
+              className="text-xs font-medium text-loss hover:opacity-80 disabled:opacity-40"
+            >
+              {stopping ? "Stopping..." : "Yes, stop"}
+            </button>
+            <button
+              onClick={() => setShowConfirmStop(false)}
+              className="text-xs text-muted hover:text-primary"
+            >
+              Cancel
+            </button>
           </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-secondary">Max total exposure</span>
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
-              min={10} max={100} value={maxExp}
-              onChange={(e) => setMaxExp(Number(e.target.value))}
-              className="w-24 accent-accent"
-            />
-            <span className="num text-xs text-primary w-8">{maxExp}%</span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-secondary">Max drawdown (kill switch)</span>
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
-              min={5} max={50} value={maxDD}
-              onChange={(e) => setMaxDD(Number(e.target.value))}
-              className="w-24 accent-accent"
-            />
-            <span className="num text-xs text-primary w-8">{maxDD}%</span>
-          </div>
-        </div>
-
-        <div className="flex gap-2 pt-1">
+        ) : (
           <button
-            onClick={handleFollow}
-            disabled={loading}
-            className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-85 disabled:opacity-40"
+            onClick={() => setShowConfirmStop(true)}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium text-loss transition-colors hover:bg-loss/10"
+            style={{ border: "1px solid rgba(239,68,68,0.2)" }}
           >
-            {loading ? "Setting up..." : "Confirm"}
+            Stop
           </button>
-          <button
-            onClick={() => setShowConfig(false)}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-primary"
-          >
-            Cancel
-          </button>
-        </div>
+        )}
       </div>
     );
   }
 
   return (
-    <button
-      onClick={() => setShowConfig(true)}
-      className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-85 active:scale-[0.97]"
-    >
-      Copy This Trader
-    </button>
+    <>
+      <button
+        onClick={() => setShowWizard(true)}
+        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-85 active:scale-[0.97]"
+      >
+        Copy This Trader
+      </button>
+
+      {showWizard && (
+        <CopyWizard
+          traderScore={traderScore}
+          positions={positions}
+          onClose={() => setShowWizard(false)}
+        />
+      )}
+    </>
   );
 }
