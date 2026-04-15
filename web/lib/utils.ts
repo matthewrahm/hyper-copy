@@ -38,3 +38,26 @@ export function rateColor(value: number): string {
   if (value < 0) return "text-loss";
   return "text-secondary";
 }
+
+export function truncateAddress(addr: string): string {
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
+export function formatDollarValue(pct: number, accountValue: number): string {
+  if (accountValue <= 0) return "";
+  return formatCurrency(accountValue * pct / 100);
+}
+
+export function getTradingStyle(avgHoldHours: number, freqPerDay: number): string {
+  let style = "";
+  if (avgHoldHours > 48) style = "Position trader";
+  else if (avgHoldHours > 12) style = "Swing trader";
+  else if (avgHoldHours > 1) style = "Day trader";
+  else style = "Scalper";
+
+  if (freqPerDay > 10) style += ", highly active";
+  else if (freqPerDay > 3) style += ", moderately active";
+  else style += ", selective";
+
+  return style;
+}

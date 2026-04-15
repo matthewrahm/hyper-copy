@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Pause, Play, X } from "lucide-react";
 import { stopCopy, pauseCopy, type CopyConfig, type CopyPerformance } from "@/lib/api";
+import { toast } from "@/app/hooks/useToast";
 import ScoreBadge from "./ScoreBadge";
 
 export default function CopyCard({
@@ -27,16 +28,18 @@ export default function CopyCard({
     setLoading("pause");
     try {
       await pauseCopy(copy.copier_address, copy.leader_address);
+      toast.info(isActive ? "Copy paused" : "Copy resumed");
       onChanged();
-    } catch {} finally { setLoading(""); }
+    } catch { toast.error("Failed to update copy"); } finally { setLoading(""); }
   };
 
   const handleStop = async () => {
     setLoading("stop");
     try {
       await stopCopy(copy.copier_address, copy.leader_address);
+      toast.success(`Stopped copying ${leaderShort}`);
       onChanged();
-    } catch {} finally { setLoading(""); setConfirmStop(false); }
+    } catch { toast.error("Failed to stop copy"); } finally { setLoading(""); setConfirmStop(false); }
   };
 
   return (

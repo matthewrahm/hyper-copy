@@ -5,7 +5,8 @@ import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createCopy, getAccountValue, type LeaderboardEntry, type TraderPosition } from "@/lib/api";
 import { useWallet } from "@/app/hooks/useWallet";
-import { formatCurrency } from "@/lib/utils";
+import { toast } from "@/app/hooks/useToast";
+import { formatCurrency, truncateAddress } from "@/lib/utils";
 import ScoreBadge from "./ScoreBadge";
 
 function StepIndicator({ current }: { current: number }) {
@@ -97,9 +98,11 @@ export default function CopyWizard({
         max_total_exposure_pct: maxExp / 100,
         max_drawdown_pct: maxDD / 100,
       });
+      toast.success(`Started paper trading ${truncateAddress(traderScore.address)}`);
       router.push("/copies");
     } catch {
       setError("Failed to create copy. Try again.");
+      toast.error("Failed to start copy trading");
     } finally {
       setLoading(false);
     }

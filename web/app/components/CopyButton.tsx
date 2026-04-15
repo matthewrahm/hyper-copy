@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getCopies, stopCopy, type LeaderboardEntry, type TraderPosition } from "@/lib/api";
 import { useWallet } from "@/app/hooks/useWallet";
+import { toast } from "@/app/hooks/useToast";
+import { truncateAddress } from "@/lib/utils";
 import CopyWizard from "./CopyWizard";
 
 export default function CopyButton({
@@ -38,8 +40,9 @@ export default function CopyButton({
       await stopCopy(address, traderScore.address);
       setIsFollowing(false);
       setShowConfirmStop(false);
+      toast.success(`Stopped copying ${truncateAddress(traderScore.address)}`);
     } catch {
-      // error
+      toast.error("Failed to stop copy");
     } finally {
       setStopping(false);
     }
