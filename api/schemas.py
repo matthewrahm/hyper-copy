@@ -77,6 +77,13 @@ class CopyConfigResponse(BaseModel):
     created_at: float
 
 
+class CopyPerformance(BaseModel):
+    leader_address: str
+    total_paper_orders: int
+    total_risk_blocked: int
+    first_order_at: float | None
+
+
 class CopyLogEntry(BaseModel):
     timestamp: float
     copier_address: str

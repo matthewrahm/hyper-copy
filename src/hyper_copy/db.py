@@ -178,6 +178,20 @@ class Database:
         self._conn.commit()
         return cursor.rowcount > 0
 
+    def get_copy_performance(self, copier: str) -> list[dict]:
+        rows = self._conn.execute(
+            """SELECT
+                leader_address,
+                COUNT(CASE WHEN status = 'paper' OR status = 'filled' THEN 1 END) as total_paper_orders,
+                COUNT(CASE WHEN status = 'risk_blocked' THEN 1 END) as total_risk_blocked,
+                MIN(timestamp) as first_order_at
+            FROM copy_log
+            WHERE copier_address = ?
+            GROUP BY leader_address""",
+            (copier,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
     def get_copy_log(self, copier: str, limit: int = 100) -> list[dict]:
         rows = self._conn.execute(
             "SELECT * FROM copy_log WHERE copier_address = ? ORDER BY timestamp DESC LIMIT ?",

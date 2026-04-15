@@ -13,6 +13,7 @@ from api.schemas import (
     CopyConfigRequest,
     CopyConfigResponse,
     CopyLogEntry,
+    CopyPerformance,
 )
 
 router = APIRouter(prefix="/api")
@@ -219,6 +220,29 @@ async def get_copy_log(
     mgr = _mgr(request)
     logs = mgr.db.get_copy_log(copier, limit)
     return [CopyLogEntry(**l) for l in logs]
+
+
+@router.patch("/copy/{copier}/{leader}/pause")
+async def pause_copy(request: Request, copier: str, leader: str):
+    if not ADDRESS_RE.match(copier) or not ADDRESS_RE.match(leader):
+        raise HTTPException(400, "Invalid address")
+    mgr = _mgr(request)
+    config = mgr.db.get_copy_config(copier, leader)
+    if not config:
+        raise HTTPException(404, "Copy config not found")
+    new_active = not config.get("active", True)
+    mgr.db.upsert_copy_config(copier, leader, config.get("config", {}), new_active)
+    updated = mgr.db.get_copy_config(copier, leader)
+    return CopyConfigResponse(**updated)
+
+
+@router.get("/copy/{copier}/performance", response_model=list[CopyPerformance])
+async def get_copy_performance(request: Request, copier: str):
+    if not ADDRESS_RE.match(copier):
+        raise HTTPException(400, "Invalid address")
+    mgr = _mgr(request)
+    perf = mgr.db.get_copy_performance(copier)
+    return [CopyPerformance(**p) for p in perf]
 
 
 @router.get("/account/{address}/value")

@@ -136,6 +136,23 @@ export function getCopyLog(copier: string, limit = 100) {
   return fetchAPI<CopyLogEntry[]>(`/api/copy/${copier}/log?limit=${limit}`);
 }
 
+export function pauseCopy(copier: string, leader: string) {
+  return fetchAPI<CopyConfig>(`/api/copy/${copier}/${leader}/pause`, {
+    method: "PATCH",
+  });
+}
+
+export interface CopyPerformance {
+  leader_address: string;
+  total_paper_orders: number;
+  total_risk_blocked: number;
+  first_order_at: number | null;
+}
+
+export function getCopyPerformance(copier: string) {
+  return fetchAPI<CopyPerformance[]>(`/api/copy/${copier}/performance`);
+}
+
 export function submitTrader(address: string) {
   return fetchAPI<{ address: string; status: string; score: number | null }>(
     "/api/trader",
